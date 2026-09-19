@@ -6,12 +6,18 @@ UI in sync with a Figma-exported design-token pipeline:
 | Skill | Does | Cadence |
 |---|---|---|
 | `sync-tokens` | Pulls a Figma variables export (Tokens Brücke, DTCG) into a codebase as CSS custom properties Tailwind consumes | Once to set up, then either automatic (CI) or manual (`npm run tokens:sync`) |
-| `slice-component` | Ports a page from a design-synced prototype repo into production, or re-applies just the visual delta to an already-integrated page | Daily — the main workhorse |
+| `slice-component` | Ports a page from a design-synced prototype **repo** into production, or re-applies just the visual delta to an already-integrated page | Daily — the main workhorse |
 | `color-checker` | A live, in-app dev tool auditing whether markup actually uses the resulting tokens, plus a live token-override panel | Once to install, then re-invoked whenever the tool itself gains a capability |
 
 Install once (this plugin), get all three as `design-token-kit:sync-tokens`,
 `design-token-kit:slice-component`, `design-token-kit:color-checker` —
 independently invokable, not a chain.
+
+**`slice-component` needs a prototype *codebase*, not just a Figma file.** It
+works by diffing/copying an existing coded implementation — if a page only
+exists as a Figma design with no prototype repo yet, this skill has nothing
+to read from and doesn't apply until someone builds that first version in
+code.
 
 Each skill's `SKILL.md` explains its own scope, workflow, and common
 mistakes in full — this file is just the map. Start there, not here.

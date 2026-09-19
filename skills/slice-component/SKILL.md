@@ -9,11 +9,17 @@ description: Use when porting a page or component from a design/prototype codeba
 
 Two codebases exist: a **prototype repo** (design-synced, often mock data, may be TypeScript) and a **production repo** (real API/state, the actual shipping app). This skill moves a page's design from prototype → production, in one of two modes depending on whether the page already exists in production.
 
+## Requires a prototype codebase — not just a Figma file
+
+Both commands work by reading an existing *coded* implementation of the page and diffing or copying from it. **If the only source of truth is a Figma file, with no prototype repo at all, this skill does not apply yet** — there's nothing on disk to diff against or copy from.
+
+That gap has to be closed by something else first: someone building the page from the Figma design (by hand, or with a Figma-to-code tool/MCP integration if one is available in your environment) into a prototype repo. Once that repo exists — even just for the one page in question — `slice-new`/`sync-existing` can take over from there. Don't try to stretch this skill into reading Figma directly; that's a fundamentally different job (interpreting a design file) from what it actually does (diffing two codebases).
+
 ## When to Use
 
-- A page exists in the prototype's Figma-synced source, redesigned, and needs to reach production
+- A page exists in the prototype's Figma-synced *source code*, redesigned, and needs to reach production
 - A production page was already ported once, and the prototype's design changed since — apply only the delta
-- **Not for:** wiring real API calls into an already-sliced page (a separate integration step); auditing token/design compliance without changing anything (see `color-checker` for the runtime audit half of that).
+- **Not for:** wiring real API calls into an already-sliced page (a separate integration step); auditing token/design compliance without changing anything (see `color-checker` for the runtime audit half of that); building a page from a Figma file with no existing prototype code (see above).
 
 ## Which mode?
 

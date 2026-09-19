@@ -1,0 +1,38 @@
+# TEMPLATE — merge into the CONSUMER repo's bitbucket-pipelines.yml under
+# `pipelines.custom`. Requires a Bitbucket Repository Access Token scoped to
+# THIS repo with "Pipelines: Write" only (cannot push/modify code, only
+# start pipeline runs) stored as the BITBUCKET_ACCESS_TOKEN secret on the
+# SOURCE repo's side (see github-action-trigger.yml) - this file only
+# defines what runs once triggered.
+#
+# Overwrite-branch by design: this pipeline force-pushes to
+# {{SYNC_BRANCH_NAME}} every run rather than accumulating history, so
+# opening a PR from it into {{TARGET_BRANCH}} is always exactly one clean
+# commit.
+
+custom:
+  {{SYNC_PIPELINE_NAME}}: # e.g. sync-design-tokens
+    - step:
+        name: Sync design tokens from Figma export
+        image: node:22-alpine
+        script:
+          - apk add --no-cache git
+          - git config user.name "Design Token Sync"
+          - git config user.email "design-token-sync@bots.bitbucket.org"
+
+          - git fetch origin {{TARGET_BRANCH}}
+          - git checkout -B {{SYNC_BRANCH_NAME}} origin/{{TARGET_BRANCH}}
+
+          # No `npm install` needed if your syncDesignTokens.template.js and
+          # core.js only use Node builtins (fs, path, fetch), same as the
+          # reference implementation.
+          - npm run tokens:sync
+
+          - git add {{GENERATED_FILES_GLOB}} # e.g. src/styles/design_token.json src/styles/tokens.css src/styles/tokens.meta.json
+          - |
+            if git diff --cached --quiet; then
+              echo "No token change to commit."
+            else
+              git commit -m "sync design tokens"
+              git push --force origin HEAD:{{SYNC_BRANCH_NAME}}
+            fi

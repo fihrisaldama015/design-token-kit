@@ -1,0 +1,76 @@
+# TEMPLATE — goes in the SOURCE repo, at .github/workflows/. Use this
+# instead of the Bitbucket pair when the CONSUMER repo is on GitHub too -
+# one workflow does the whole round trip, no intermediate pipeline needed.
+#
+# Requires a secret named DEST_REPO_TOKEN on THIS (source) repo - a GitHub
+# PAT with write access to the consumer repo only.
+
+name: Sync design tokens to {{CONSUMER_REPO_NAME}}
+
+on:
+  push:
+    branches:
+      - "**"
+
+env:
+  DEST_BRANCH: {{SYNC_BRANCH_NAME}}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check destination token is set
+        id: check
+        env:
+          DEST_REPO_TOKEN: ${{ secrets.DEST_REPO_TOKEN }}
+        run: |
+          if [ -z "$DEST_REPO_TOKEN" ]; then
+            echo "DEST_REPO_TOKEN secret is not set - skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout this repo (source of the export)
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout consumer repo (destination)
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          repository: {{CONSUMER_REPO_OWNER_SLASH_NAME}}
+          token: ${{ secrets.DEST_REPO_TOKEN }}
+          ref: ${{ env.DEST_BRANCH }}
+          path: dest
+
+      - name: Copy the export and regenerate tokens.css
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cp source/design_token.json {{DEST_GENERATED_DIR}}/design_token.json
+
+          # Runs the destination's own generator - same code `npm run
+          # tokens:build` runs there, no npm install needed if it only
+          # uses Node builtins plus files relative to itself.
+          cd dest
+          node scripts/syncDesignTokens.js
+
+      - name: Commit and push if anything changed
+        if: steps.check.outputs.skip == 'false'
+        working-directory: dest
+        run: |
+          git config user.name "design-token-bot"
+          git config user.email "design-token-bot@users.noreply.github.com"
+
+          git add {{GENERATED_FILES_GLOB}}
+          if git diff --cached --quiet; then
+            echo "No token change to commit."
+          else
+            git commit -m "sync design tokens"
+            # actions/checkout with ref: leaves HEAD detached - push
+            # explicitly to the branch name rather than relying on an
+            # upstream being set.
+            git push origin HEAD:"$DEST_BRANCH"
+          fi

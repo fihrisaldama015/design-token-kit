@@ -1,0 +1,13 @@
+{
+  "name": "design-token-kit",
+  "version": "0.1.0",
+  "description": "Sync Figma-exported design tokens into a codebase, slice/re-sync prototype pages into production, and audit a running app for tokens not actually in use — three independent skills sharing one design-token workflow.",
+  "author": {
+    "name": "BlueSilo"
+  },
+  "skills": [
+    "./skills/sync-tokens",
+    "./skills/slice-component",
+    "./skills/color-checker"
+  ]
+}

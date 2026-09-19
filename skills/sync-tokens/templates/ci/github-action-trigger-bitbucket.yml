@@ -1,0 +1,60 @@
+# TEMPLATE — goes in the SOURCE repo (the one holding design_token.json),
+# at .github/workflows/. Pairs with bitbucket-pipelines.snippet.yml on the
+# consumer side: this fires the Bitbucket pipeline, that file defines what
+# it actually does.
+#
+# Requires a secret named BITBUCKET_ACCESS_TOKEN on THIS (source) repo - a
+# Bitbucket Repository Access Token scoped to the consumer repo,
+# "Pipelines: Write" only.
+
+name: Trigger {{SYNC_PIPELINE_NAME}} pipeline
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Bitbucket token is set
+        id: check
+        env:
+          BITBUCKET_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$BITBUCKET_ACCESS_TOKEN" ]; then
+            echo "BITBUCKET_ACCESS_TOKEN secret is not set - skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger the {{SYNC_PIPELINE_NAME}} custom pipeline
+        if: steps.check.outputs.skip == 'false'
+        env:
+          BITBUCKET_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
+        run: |
+          PAYLOAD=$(jq -n '{
+            target: {
+              type: "pipeline_ref_target",
+              ref_type: "branch",
+              ref_name: "{{TARGET_BRANCH}}",
+              selector: { type: "custom", pattern: "{{SYNC_PIPELINE_NAME}}" }
+            }
+          }')
+
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $BITBUCKET_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://api.bitbucket.org/2.0/repositories/{{BITBUCKET_WORKSPACE}}/{{BITBUCKET_REPO_SLUG}}/pipelines/")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "$BODY"
+
+          if [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Bitbucket returned HTTP $HTTP_CODE"
+            exit 1
+          fi
